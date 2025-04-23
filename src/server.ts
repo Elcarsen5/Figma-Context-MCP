@@ -9,8 +9,8 @@ import { SimplifiedDesign } from "./services/simplify-node-response.js";
 import yaml from "js-yaml";
 
 export const Logger = {
-  log: (...args: any[]) => {},
-  error: (...args: any[]) => {},
+  log: (...args: any[]) => { },
+  error: (...args: any[]) => { },
 };
 
 export class FigmaMcpServer {
@@ -64,8 +64,7 @@ export class FigmaMcpServer {
       async ({ fileKey, nodeId, depth }) => {
         try {
           Logger.log(
-            `Fetching ${
-              depth ? `${depth} layers deep` : "all layers"
+            `Fetching ${depth ? `${depth} layers deep` : "all layers"
             } of ${nodeId ? `node ${nodeId} from file` : `full file`} ${fileKey}`,
           );
 
@@ -226,6 +225,32 @@ export class FigmaMcpServer {
 
       await this.server.connect(transport);
     });
+
+    app.post("/evaluate", async (req: Request, res: Response) => {
+      const { fileKey, nodeId, label } = req.body;
+    
+      try {
+        const node = await this.figmaService.getNode(fileKey, nodeId);
+        const contextText = JSON.stringify(node, null, 2);
+    
+        const prompt = `
+    [Figma 문맥]
+    ${contextText}
+    
+    [텍스트]
+    "${label}"
+    
+    UX Writing 관점에서 이 텍스트는 적절한가요?
+    역할(버튼/헤더 등)에 맞는 표현인지, 개선점이 있다면 제안해주세요.
+    `;
+    
+        const result = await callOpenAI(prompt);
+        res.json({ reply: result });
+      } catch (err) {
+        res.status(500).json({ error: "MCP 서버 GPT 처리 중 오류", detail: err });
+      }
+    });
+    
 
     app.post("/messages", async (req: Request, res: Response) => {
       const sessionId = req.query.sessionId as string;
